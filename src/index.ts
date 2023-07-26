@@ -1,10 +1,5 @@
 import express, { Request, Response } from 'express'
 import cors from 'cors';
-import { emit } from 'process';
-import { BaseDatabase } from './sql/BaseDatabase';
-import { Video } from './Models/Video';
-import { TVideo, TVideoDB } from './types';
-import { VideoDatabase } from './sql/VideoDatabase';
 import { VideoControllers } from './controllers/VideoControllers';
 
 //criação do servidor express 👇🏽

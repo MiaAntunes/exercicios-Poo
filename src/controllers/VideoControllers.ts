@@ -1,5 +1,4 @@
 // Polimorfismo
-
 import { Request, Response } from "express"
 import { VideoDatabase } from "../sql/VideoDatabase"
 import { Video } from "../Models/Video"
