@@ -3,185 +3,113 @@ import { Request, Response } from "express"
 import { VideoDatabase } from "../sql/VideoDatabase"
 import { Video } from "../Models/Video"
 import { TVideoDB } from "../types"
+import { VideoBusiness } from "../business/VideoBusiness"
+import { BaseError } from "../error/BaseError"
+import { CreateVideoSchema } from "../dtos/createVideo.dto"
+import { EditVideoShema } from "../dtos/editVideo.dto"
 
 // Validar/tratar os dados
 export class VideoControllers {
+    constructor(
+        private videoBusiness:VideoBusiness
+    ){
+
+    }
 
     public getVideo = async (req: Request, res: Response) => {
         try {
 
-            const titleSearch = req.params.id as string
-
-            const videoDatabase = new VideoDatabase()
-
-            const videoDB = await videoDatabase.findVideo(titleSearch)
-            // Fazer uma padronização
-
-            // Padronização dos nomes da classes que foi feta para o video
-            const videosVerification: Video[] = videoDB.map((video) => {
-                return new Video(
-                    video.id,
-                    video.title,
-                    video.durationSecond,
-                    video.dateUpload
-                )
-            })
+            
+            const response = await this.videoBusiness.getVideo()
 
 
-            res.status(200).send(videosVerification)
+            res.status(200).send(response)
         }
         catch (error: any) {
             console.log(error)
 
-            if (res.statusCode === 200) {
-                res.status(500)
+            if (error instanceof BaseError) {
+                res.status(error.statusCode).send(error.message) //aqui incluimos o método status com o código do erro correto
+            } else {
+                res.status(500).send("Erro inesperado")
             }
-
-            res.send(error.message)
         }
     }
 
     public postVideo = async (req: Request, res: Response) => {
         try {
-            const newId = req.body.id as string
-            const newTitle = req.body.title as string
-            const newDurationSecond = req.body.durate_second as number
-            const dateUpload = new Date().toISOString()
+            const input = CreateVideoSchema.parse ({
+                newId: req.body.id as string,
+                newTitle: req.body.title as string,
+                newDurationSecond: req.body.durate_second as number,
+                dateUpload: new Date().toISOString()
+            })
 
+            
+            const response = await this.videoBusiness.postVideo(input)
 
-            // Usar a filha para podermos verificar se há existência desse id
-            const instânciaVideo = new VideoDatabase()
-            const videoDB = await instânciaVideo.findVideoId(newId)
-
-
-            if (videoDB.length === 0) {
-                // Criação de uma constante e a padronização para a inserção no banco de dados
-                const result = new Video(
-                    newId,
-                    newTitle,
-                    newDurationSecond,
-                    dateUpload
-                )
-                const newVideoDB: TVideoDB = {
-                    id: result.getId(),
-                    title: result.getTitle(),
-                    duration_second: result.getDurationSecond(),
-                    date_upload: result.getDateUpload()
-                }
-
-
-                //O uso da classe filha para padronizar a inserção dela no banco de dados
-                await instânciaVideo.insertVideo(newVideoDB)
-
-                res.status(200).send("Upload feito")
-            } else {
-                res.status(400)
-                throw new Error("Esse id já existe")
-            }
+            res.status(200).send(response.message)
         }
         catch (error: any) {
             console.log(error)
 
-            if (res.statusCode === 200) {
-                res.status(500)
+            if (error instanceof BaseError) {
+                res.status(error.statusCode).send(error.message) //aqui incluimos o método status com o código do erro correto
+            } else {
+                res.status(500).send("Erro inesperado")
             }
-
-            res.send(error.message)
         }
     }
 
     public deleteVideo = async (req: Request, res: Response) => {
         try {
 
-            const id = req.params.id as string
-
-            // The find was made in the file VideoDataBase
-            const instânciaVideo = new VideoDatabase()
-            const videoDBExist = await instânciaVideo.findVideoId(id)
-            // console.log(videoDBExist)
-
-            if (videoDBExist.length === 0) {
-                res.status(400)
-                throw new Error("Esse id não existe")
+            const input = {
+                id: req.params.id as string
             }
 
-            await instânciaVideo.deleteVideo(id)
-            // console.log(deleteVideo)
+            
+            const response = await this.videoBusiness.deleteVideo(input)
 
-            res.status(200).send("ok")
+            res.status(200).send(response.message)
 
         }
         catch (error: any) {
             console.log(error)
 
-            if (res.statusCode === 200) {
-                res.status(500)
+            if (error instanceof BaseError) {
+                res.status(error.statusCode).send(error.message) //aqui incluimos o método status com o código do erro correto
+            } else {
+                res.status(500).send("Erro inesperado")
             }
-
-            res.send(error.message)
         }
     }
 
     public putVideo = async (req: Request, res: Response) => {
         try {
-            const id = req.params.id as string
 
             //Edições
-            // ! Dúvidas de quando ser undefined pois ele não receber
-            const newId = req.body.id as string
-            const newTitle = req.body.title as string
-            const newDurationSecond = req.body.durate_second as number
+            const input = EditVideoShema.parse({
+                id: req.params.id,
+                newId: req.body.id,
+                newTitle: req.body.title,
+                newDurationSecond: req.body.durate_second
+            })
 
-            // The find was made in the file VideoDataBase
-            const instânciaVideo = new VideoDatabase()
-            const [videoDBExist] = await instânciaVideo.findVideoId(id)
+            
+            const response = await this.videoBusiness.putVideo(input)
 
-
-            if (!videoDBExist) {
-                res.status(400)
-                throw new Error("Esse id não existe")
-            }
-
-
-            // Criação de uma constante e a padronização para a update no banco de dados
-            // Copia do banco de dados!!!!!
-            const video = new Video(
-                videoDBExist.id,
-                videoDBExist.title ,
-                videoDBExist.durationSecond,
-                videoDBExist.dateUpload
-            )
-
-            if(newId && newId !== videoDBExist.id){
-                return video.setId(newId) 
-            }
-
-            newTitle && video.setTitle(newTitle)// --- Operador lógico ou Curto-circuito
-            // newId? video.setId(newId) : ---> Ternário
-            newDurationSecond && video.setDurationSecond(newDurationSecond)
-            console.log("2",video)
-
-            //Padronizar para o banco de dados
-            const resultVideoDB: TVideoDB = {
-                id: video.getId(),
-                title: video.getTitle(),
-                duration_second: video.getDurationSecond(),
-                date_upload: video.getDateUpload()
-            }
-
-            await instânciaVideo.updateVideo(resultVideoDB)
-
-            res.status(200).send("ok")
+            res.status(200).send(response)
 
         }
         catch (error: any) {
             console.log(error)
 
-            if (res.statusCode === 200) {
-                res.status(500)
+            if (error instanceof BaseError) {
+                res.status(error.statusCode).send(error.message) //aqui incluimos o método status com o código do erro correto
+            } else {
+                res.status(500).send("Erro inesperado")
             }
-
-            res.send(error.message)
         }
 
     }
